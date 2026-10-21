@@ -3,6 +3,7 @@
 
 # Sarah Cordell et al.
 
+
 ### Getting setup -----------------------------------------------------------
 
 library(tidyverse)
@@ -16,9 +17,6 @@ library(patchwork)
 library(grid)
 library(readxl)
 
-
-setwd("C:/Users/z5628859/UNSW/Platypus MSc - Sarah - General/003_Chapter 2/Chapter 2 Analysis/Chapter 2 Monotreme Epigenetics")
-
 set.seed(1234567)
 
 
@@ -29,17 +27,8 @@ beta <- read.csv('Data/data_sesame_40k.csv')
 rownames(beta) <- beta$CGid
 beta$CGid <- NULL
 
-dim(beta)
-
 # Load metadata (sample information)
 meta <- read.csv('Data/ET0835.DayTarongaPlatypus.m40k_metadata.csv')
-
-head(meta)
-
-# Load master data sheet
-# Add individual origin (wild/captive)
-
-master <- read_excel('Chapter 2_DATA MASTER.xlsx')
 
 # Load Universal Clock Coefficients
 uniclk <- read.csv("Data/Universal_Coef.CombAnn.csv", stringsAsFactors = FALSE)
@@ -57,7 +46,6 @@ meta <- meta %>%
 
 # Sanity check, should = 0
 sum(is.na(meta$AnimalID))
-
 
 # Add common name to metadata
 meta <- meta %>%
@@ -89,15 +77,6 @@ meta <- meta %>%
   left_join(species_params, by = "SpeciesLatinName")
 
 
-#### Appendix S3. Summary of life history parameters -----------------------
-
-write.csv(
-  species_params,
-  file = "Outputs_ENR/Species_Parameters.csv",
-  row.names = FALSE
-)
-
-
 ### Quality control, remove outliers and other -----------------------------
 
 # Remove outliers; hierarchical and probe fails
@@ -112,33 +91,6 @@ sampletidy <- c(outliers, questionable)
 
 beta <- beta[, !(colnames(beta) %in% sampletidy)]
 meta <- meta[!(meta$SID %in% sampletidy), ]
-
-
-#### Table X Summary of samples analysed to develop clock model -------------
-
-sample_summary1 <- meta %>%
-  dplyr::mutate(
-    KnownAge = !is.na(Age)
-  ) %>%
-  dplyr::group_by(
-    SpeciesLatinName,
-    KnownAge,
-    Tissue,
-    Sex
-  ) %>%
-  dplyr::summarise(
-    n = dplyr::n(),
-    MinAge = ifelse(all(is.na(Age)), NA, min(Age, na.rm = TRUE)),
-    MaxAge = ifelse(all(is.na(Age)), NA, max(Age, na.rm = TRUE)),
-    MedianAge = ifelse(all(is.na(Age)), NA, median(Age, na.rm = TRUE)),
-    .groups = "drop"
-  )
-
-write.csv(
-  sample_summary1,
-  file = "Outputs_ENR/Sample_Summary_Age_Sex.csv",
-  row.names = FALSE
-)
 
 
 ### Create age transformation functions ------------------------------------
@@ -207,15 +159,6 @@ age_train <- meta_train$Age
 meta_train$tAge <- fun_llin_trans(
   age = meta_train$Age,
   maturity = meta_train$AgeASM
-)
-
-
-#### Appendix, potentially, duplicated info from S3 ------------------------
-
-write.csv(meta |>
-  dplyr::count(SpeciesLatinName, !is.na(meta$Age), Tissue),
-  file = "Outputs_ENR/Sample_Summary.csv",
-  row.names = FALSE
 )
 
 
@@ -306,13 +249,6 @@ summary_uniclk2 <- clock_summary_stats(
 )
 summary_uniclk2
 
-# Summary table Universal Clock 2 - All
-write.csv(
-  summary_uniclk2,
-  file = "Outputs_ENR/Summary_Stats_UniversalClock2_All.csv",
-  row.names = FALSE
-)
-
 # Summary statistics Universal Clock 2 - Species
 summary_uniclk2_species <- meta_train %>%
   group_by(SpeciesLatinName) %>%
@@ -322,13 +258,6 @@ summary_uniclk2_species <- meta_train %>%
       individuals = AnimalID
   ))
 summary_uniclk2_species
-
-# Summary table Universal Clock 2 - Species
-write.csv(
-  summary_uniclk2_species,
-  file = "Outputs_ENR/Summary_Stats_UniversalClock2_Species.csv",
-  row.names = FALSE
-)
 
 # Summary statistics Universal Clock 2 - Tissue
 summary_uniclk2_tissue <- meta_train %>%
@@ -340,13 +269,6 @@ summary_uniclk2_tissue <- meta_train %>%
   ))
 summary_uniclk2_tissue
 
-# Summary table Universal Clock 2 - Tissue
-write.csv(
-  summary_uniclk2_tissue,
-  file = "Outputs_ENR/Summary_Stats_UniversalClock2_Tissue.csv",
-  row.names = FALSE
-)
-
 # Summary statistics Universal Clock 2 - Species and Tissue
 summary_uniclk2_species_tissue <- meta_train %>%
   group_by(SpeciesLatinName, Tissue) %>%
@@ -357,88 +279,6 @@ summary_uniclk2_species_tissue <- meta_train %>%
   ))
 summary_uniclk2_species_tissue
 
-# Summary table Universal Clock 2 - Species and Tissue
-write.csv(
-  summary_uniclk2_species_tissue,
-  file = "Outputs_ENR/Summary_Stats_UniversalClock2_Species_Tissue.csv",
-  row.names = FALSE
-)
-
-#### Plot Universal Clock 2 -------------------------------------------------
-
-UniClock2_plot <- ggplot(meta_train, aes(x = Age, y = Universal2Age, 
-                          colour = Species, shape = Tissue)) +
-  geom_point(size = 2, stroke = 0.7) +
-  geom_smooth(
-    inherit.aes = FALSE,
-    aes(x = Age, y = Universal2Age),
-    method = "lm",
-    se = FALSE,
-    colour = "black",
-    linewidth = 1
-  ) +
-  geom_abline(intercept = 0, slope = 1, linetype = 2) +
-  scale_colour_manual(
-    name = "Species",
-    values = c(
-      "Platypus" = "#293583",
-      "Short-beaked echidna" = "#ff7254"
-    )) +
-  scale_shape_manual(
-    name = "Tissue",
-    values = c(
-      "blood" = 21,
-      "skin" = 24
-    ),
-    labels = c(
-      "Blood",
-      "Skin"
-    )) +
-  coord_equal(
-    xlim = c(0, 40),
-    ylim = c(0, 50)
-  ) +
-  theme_classic() +
-  labs(
-    x = "Chronological age (years)",
-    y = "Predicted age (years)"
-  )
-UniClock2_plot
-
-label_uniclk2 <- clock_summary_label(
-  actual = meta_train$Age,
-  predicted = meta_train$Universal2Age,
-  individuals = meta_train$AnimalID
-)
-
-UniClock2_plot_labeled <- UniClock2_plot +
-  annotate(
-    "text",
-    x = Inf,
-    y = Inf,
-    label = label_uniclk2,
-    hjust = 1.1,
-    vjust = 1.1,
-    size = 6,
-    colour = "black"
-  )
-UniClock2_plot_labeled
-
-ggsave(
-  filename = "Outputs_ENR/UniClk2_plot.png",
-  plot = UniClock2_plot_labeled,
-  width = 6,
-  height = 6,
-  units = "in",
-  dpi = 300
-)
-
-UniClock2_plot_clean <- UniClock2_plot_labeled +
-  labs(
-    x = NULL,
-    y = "Predicted age (years)"
-  )
-UniClock2_plot_clean
 
 ### Universal Clock 3 ------------------------------------------------------
 
@@ -467,13 +307,6 @@ summary_uniclk3 <- clock_summary_stats(
 )
 summary_uniclk3
 
-# Summary table Universal Clock 2 - All
-write.csv(
-  summary_uniclk3,
-  file = "Outputs_ENR/Summary_Stats_UniversalClock3_All.csv",
-  row.names = FALSE
-)
-
 # Summary statistics Universal Clock 2 - Species
 summary_uniclk3_species <- meta_train %>%
   group_by(SpeciesLatinName) %>%
@@ -483,13 +316,6 @@ summary_uniclk3_species <- meta_train %>%
     individuals = AnimalID
   ))
 summary_uniclk3_species
-
-# Summary table Universal Clock 3 - Species
-write.csv(
-  summary_uniclk3_species,
-  file = "Outputs_ENR/Summary_Stats_UniversalClock3_Species.csv",
-  row.names = FALSE
-)
 
 # Summary statistics Universal Clock 3 - Tissue
 summary_uniclk3_tissue <- meta_train %>%
@@ -501,13 +327,6 @@ summary_uniclk3_tissue <- meta_train %>%
   ))
 summary_uniclk3_tissue
 
-# Summary table Universal Clock 3 - Tissue
-write.csv(
-  summary_uniclk3_tissue,
-  file = "Outputs_ENR/Summary_Stats_UniversalClock3_Tissue.csv",
-  row.names = FALSE
-)
-
 # Summary statistics Universal Clock 3 - Species and Tissue
 summary_uniclk3_species_tissue <- meta_train %>%
   group_by(SpeciesLatinName, Tissue) %>%
@@ -517,89 +336,6 @@ summary_uniclk3_species_tissue <- meta_train %>%
     individuals = AnimalID
   ))
 summary_uniclk3_species_tissue
-
-# Summary table Universal Clock 2 - Species and Tissue
-write.csv(
-  summary_uniclk3_species_tissue,
-  file = "Outputs_ENR/Summary_Stats_UniversalClock3_Species_Tissue.csv",
-  row.names = FALSE
-)
-
-#### Plot Universal Clock 3 -------------------------------------------------
-
-UniClock3_plot <- ggplot(meta_train, aes(x = Age, y = Universal3Age, 
-                                         colour = Species, shape = Tissue)) +
-  geom_point(size = 2, stroke = 0.7) +
-  geom_smooth(
-    inherit.aes = FALSE,
-    aes(x = Age, y = Universal3Age),
-    method = "lm",
-    se = FALSE,
-    colour = "black",
-    linewidth = 1
-  ) +
-  geom_abline(intercept = 0, slope = 1, linetype = 2) +
-  scale_colour_manual(
-    name = "Species",
-    values = c(
-      "Platypus" = "#293583",
-      "Short-beaked echidna" = "#ff7254"
-    )) +
-  scale_shape_manual(
-    name = "Tissue",
-    values = c(
-      "blood" = 21,
-      "skin" = 24
-    ),
-    labels = c(
-      "Blood",
-      "Skin"
-    )) +
-  coord_equal(
-    xlim = c(0, 40),
-    ylim = c(0, 50)
-  ) +
-  theme_classic() +
-  labs(
-    x = "Chronological age (years)",
-    y = "Predicted age (years)"
-  )
-UniClock3_plot
-
-label_uniclk3 <- clock_summary_label(
-  actual = meta_train$Age,
-  predicted = meta_train$Universal3Age,
-  individuals = meta_train$AnimalID
-)
-
-UniClock3_plot_labeled <- UniClock3_plot +
-  annotate(
-    "text",
-    x = Inf,
-    y = Inf,
-    label = label_uniclk2,
-    hjust = 1.1,
-    vjust = 1.1,
-    size = 6,
-    colour = "black"
-  )
-UniClock3_plot_labeled
-
-ggsave(
-  filename = "Outputs_ENR/UniClk3_plot.png",
-  plot = UniClock3_plot_labeled,
-  width = 6,
-  height = 6,
-  units = "in",
-  dpi = 300
-)
-
-UniClock3_plot_clean <- UniClock3_plot_labeled +
-  labs(
-    x = NULL,
-    y = NULL
-  )
-UniClock3_plot_clean
 
 
 ### Create vectors for elastic net model construction -----------------------
