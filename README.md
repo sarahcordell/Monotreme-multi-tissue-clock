@@ -1,6 +1,6 @@
 About time: A novel way of ageing Monotremes using an epigenetic clock
 
-Sarah M. Cordell1,2*, Gilad Bino1, Tahneal Hawke1,2, Justine K. O’Brien1,2, Asako Y. Chaille3, Sumitha Hunjan3, Gabrielle Tobias4, Phoebe Meagher2, Joanna Day2
+Sarah M. Cordell 1,2*, Gilad Bino 1, Tahneal Hawke 1,2, Justine K. O’Brien 1,2, Asako Y. Chaille 3, Sumitha Hunjan 3, Gabrielle Tobias 4, Phoebe Meagher 2, Joanna Day 2
 
 1 Centre for Ecosystem Science, School of Biological, Earth & Environmental Sciences, UNSW Sydney, 2052 NSW, Australia
 
