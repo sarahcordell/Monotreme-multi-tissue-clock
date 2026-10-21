@@ -10,7 +10,6 @@ library(tidyverse)
 library(glmnet)
 library(coefplot)
 library(caret)
-#library(lme4)
 library(lmerTest)
 library(ggtext)
 library(patchwork)
@@ -372,8 +371,7 @@ glmnet.Training.CV <- cv.glmnet(
 )
 
 lambda.training <- glmnet.Training.CV$lambda.1se
-# Try lambda.min instead to see how accuracy is impacted
-#lambda.training <- glmnet.Training.CV$lambda.min
+
 
 ### LOIOCV -----------------------------------------------------------------
 
@@ -410,59 +408,6 @@ meta_train$PredictedAgeLOIOCV <- fun_llin_inv(
   maturity = meta_train$AgeASM
 )
 
-#### Appendix S4. Summary of unique individuals ----------------------------
-
-unique_individuals <- meta %>%
-  count(AnimalID, Species, name = "n_samples") %>%
-  filter(n_samples > 1) %>%
-  arrange(desc(n_samples))
-
-unique_individuals
-
-write.csv(
-  unique_individuals,
-  file = "Outputs_ENR/Unique_Individual_IDs.csv",
-  row.names = FALSE
-)
-
-unique_individuals1 <- meta_train %>%
-  dplyr::group_by(SpeciesLatinName) %>%
-  dplyr::summarise(
-    UniqueIndividuals = dplyr::n_distinct(AnimalID),
-    Samples = dplyr::n(),
-    .groups = "drop"
-  )
-
-write.csv(
-  unique_individuals1,
-  file = "Outputs_ENR/Unique_Individuals.csv",
-  row.names = FALSE
-)
-
-#### Appendix S5. Summary of unique individuals per tissue -----------------
-
-unique_individuals2 <- meta_train %>%
-  dplyr::group_by(SpeciesLatinName, Tissue) %>%
-  dplyr::summarise(
-    UniqueIndividuals = dplyr::n_distinct(AnimalID),
-    Samples = dplyr::n(),
-    .groups = "drop"
-)
-
-write.csv(
-  unique_individuals2,
-  file = "Outputs_ENR/Unique_Individuals_Species_Tissue.csv",
-  row.names = FALSE
-)
-
-meta_test %>%
-  dplyr::group_by(SpeciesLatinName) %>%
-  dplyr::summarise(
-    UniqueIndividuals = dplyr::n_distinct(AnimalID),
-    Samples = dplyr::n(),
-    .groups = "drop"
-  )
-
 
 #### Summary statistics Monotreme Epigenetic Clock ----------------------------------- 
 
@@ -474,13 +419,6 @@ summary_LOIOCV <- clock_summary_stats(
 )
 summary_LOIOCV
 
-# Summary table Monotreme Epigenetic Clock - All
-write.csv(
-  summary_LOIOCV,
-  file = "Outputs_ENR/Summary_Stats_MonotremeClock_All.csv",
-  row.names = FALSE
-)
-
 # Summary statistics Monotreme Epigenetic Clock- Species
 summary_LOIOCV_species <- meta_train %>%
   group_by(SpeciesLatinName) %>%
@@ -490,13 +428,6 @@ summary_LOIOCV_species <- meta_train %>%
     individuals = AnimalID
   ))
 summary_LOIOCV_species
-
-# Summary table Monotreme Epigenetic Clock - Species
-write.csv(
-  summary_LOIOCV_species,
-  file = "Outputs_ENR/Summary_Stats_MonotremeClock_Species.csv",
-  row.names = FALSE
-)
 
 # Summary statistics Monotreme Epigenetic Clock - Tissue
 summary_LOIOCV_tissue <- meta_train %>%
@@ -508,13 +439,6 @@ summary_LOIOCV_tissue <- meta_train %>%
   ))
 summary_LOIOCV_tissue
 
-# Summary table Monotreme Epigenetic Clock - Tissue
-write.csv(
-  summary_LOIOCV_tissue,
-  file = "Outputs_ENR/Summary_Stats_MonotremeClock_Tissue.csv",
-  row.names = FALSE
-)
-
 # Summary statistics Monotreme Epigenetic Clock - Species and Tissue
 summary_LOIOCV_species_tissue <- meta_train %>%
   group_by(SpeciesLatinName, Tissue) %>%
@@ -525,12 +449,6 @@ summary_LOIOCV_species_tissue <- meta_train %>%
   ))
 summary_LOIOCV_species_tissue
 
-# Summary table Monotreme Epigenetic Clock - Species and Tissue
-write.csv(
-  summary_LOIOCV_species_tissue,
-  file = "Outputs_ENR/Summary_Stats_MonotremeClock_Species_Tissue.csv",
-  row.names = FALSE
-)
 
 ### Final LOIOCV Clock model ------------------------------------------------
 
@@ -561,434 +479,6 @@ meta_test$PredictedAgeLOIO <- fun_llin_inv(
   maturity = meta_test$AgeASM
 )
 
-# Export results 
-write.csv(
-  meta_train,
-  file = "Outputs_ENR/EpigeneticClock_KnownAgePredictions.csv",
-  row.names = FALSE
-)
-
-write.csv(
-  meta_test,
-  file = "Outputs_ENR/EpigeneticClock_UnknownAgePredictions.csv",
-  row.names = FALSE
-)
-
-
-#### Plot Monotreme Epigenetic Clock ----------------------------------------
-
-MonotremeClock_plot <- ggplot(meta_train, aes(x = Age, y = PredictedAgeLOIOCV, 
-                                         colour = Species, shape = Tissue)) +
-  geom_point(size = 2, stroke = 0.7) +
-  geom_smooth(
-    inherit.aes = FALSE,
-    aes(x = Age, y = PredictedAgeLOIOCV),
-    method = "lm",
-    se = FALSE,
-    colour = "black",
-    linewidth = 1
-  ) +
-  geom_abline(intercept = 0, slope = 1, linetype = 2) +
-  scale_colour_manual(
-    name = "Species",
-    values = c(
-      "Platypus" = "#293583",
-      "Short-beaked echidna" = "#ff7254"
-    )) +
-  scale_shape_manual(
-    name = "Tissue",
-    values = c(
-      "blood" = 21,
-      "skin" = 24
-    ),
-    labels = c(
-      "Blood",
-      "Skin"
-    )) +
-  coord_equal(
-    xlim = c(0, 40),
-    ylim = c(0, 50)
-  ) +
-  theme_classic() +
-  labs(
-    x = "Chronological age (years)",
-    y = "Predicted age (years)"
-  )
-MonotremeClock_plot
-
-label_MonotremeClock <- clock_summary_label(
-  actual = meta_train$Age,
-  predicted = meta_train$PredictedAgeLOIOCV,
-  individuals = meta_train$AnimalID
-)
-
-MonotremeClock_plot_labeled <- MonotremeClock_plot +
-  annotate(
-    "text",
-    x = Inf,
-    y = Inf,
-    label = label_MonotremeClock,
-    hjust = 1.1,
-    vjust = 1.1,
-    size = 6,
-    colour = "black"
-  )
-MonotremeClock_plot_labeled
-
-ggsave(
-  filename = "Outputs_ENR/MonoClk_plot.png",
-  plot = MonotremeClock_plot_labeled,
-  width = 6,
-  height = 6,
-  units = "in",
-  dpi = 300
-)
-
-MonotremeClock_plot_clean <- MonotremeClock_plot_labeled +
-labs(
-  x = NULL,
-  y = NULL
-)
-MonotremeClock_plot_clean
-
-
-#### Plot Species - Monotreme Epigenetic Clock ------------------------------
-
-MonoClk_species_plot <- ggplot(meta_train, aes(x = Age, y = PredictedAgeLOIOCV, 
-                                              colour = Species, shape = Tissue)) +
-  geom_point(size = 2, stroke = 0.8) +
-  geom_smooth(
-    inherit.aes = FALSE,
-    aes(x = Age, y = PredictedAgeLOIOCV),
-    method = "lm",
-    se = FALSE,
-    colour = "black",
-    linewidth = 1
-  ) +
-  geom_abline(intercept = 0, slope = 1, linetype = 2) +
-  facet_wrap( ~ Species) +
-  scale_colour_manual(
-    name = "Species",
-    values = c(
-      "Platypus" = "#293583",
-      "Short-beaked echidna" = "#ff7254"
-    )) +
-  scale_shape_manual(
-    name = "Tissue",
-    values = c(
-      "blood" = 21,
-      "skin" = 24
-    ),
-    labels = c(
-      "Blood",
-      "Skin"
-    )) +
-  coord_equal(
-    xlim = c(0, 40),
-    ylim = c(0, 50)
-  ) +
-  theme_classic() +
-  labs(
-    x = "Chronological age (years)",
-    y = "Predicted age (years)"
-  ) +
-  theme(strip.background = element_blank(),
-        strip.text = element_text(size = 14)
-  )
-MonoClk_species_plot
-
-label_MonoClk_species <- meta_train %>%
-  dplyr::group_by(Species) %>%
-  dplyr::summarise(
-    label = clock_summary_label(
-      actual = Age,
-      predicted = PredictedAgeLOIOCV,
-      individuals = AnimalID
-    ),
-    .groups = "drop"
-  )
-
-MonoClk_species_plot_labeled <- MonoClk_species_plot +
-  geom_text(
-    data = label_MonoClk_species,
-    aes(label = label),
-    x = 39,
-    y = 49,
-    inherit.aes = FALSE,
-    hjust = 1,
-    vjust = 1,
-    size = 5
-  )
-MonoClk_species_plot_labeled
-
-# Save plot
-ggsave(
-  filename = "Outputs_ENR/MonoClk_plot_species.png",
-  plot = MonoClk_species_plot_labeled,
-  width = 10,
-  height = 4,
-  units = "in",
-  dpi = 300
-)
-
-MonoClk_species_plot_clean <- MonoClk_species_plot_labeled +
-  labs(
-    x = NULL,
-    y = "Predicted age (years)"
-  )
-MonoClk_species_plot_clean
-
-
-#### Plot Tissue - Monotreme Epigenetic Clock ------------------------------
-
-MonoClk_tissue_plot <- ggplot(meta_train, aes(x = Age, y = PredictedAgeLOIOCV, 
-                                               colour = Species, shape = Tissue)) +
-  geom_point(size = 2, stroke = 0.8) +
-  geom_smooth(
-    inherit.aes = FALSE,
-    aes(x = Age, y = PredictedAgeLOIOCV),
-    method = "lm",
-    se = FALSE,
-    colour = "black",
-    linewidth = 1
-  ) +
-  geom_abline(intercept = 0, slope = 1, linetype = 2) +
-  facet_wrap( ~ Tissue,
-              labeller = labeller(
-                Tissue = c(
-                  "blood" = "Blood",
-                  "skin" = "Skin"
-                ))
-  ) +
-  scale_colour_manual(
-    name = "Species",
-    values = c(
-      "Platypus" = "#293583",
-      "Short-beaked echidna" = "#ff7254"
-    )) +
-  scale_shape_manual(
-    name = "Tissue",
-    values = c(
-      "blood" = 21,
-      "skin" = 24
-    ),
-    labels = c(
-      "Blood",
-      "Skin"
-    )) +
-  coord_equal(
-    xlim = c(0, 40),
-    ylim = c(0, 50)
-  ) +
-  theme_classic() +
-  labs(
-    x = "Chronological age (years)",
-    y = "Predicted age (years)"
-  ) +
-  theme(strip.background = element_blank(),
-        strip.text = element_text(size = 14)
-  )
-MonoClk_tissue_plot
-
-label_MonoClk_tissue <- meta_train %>%
-  dplyr::group_by(Tissue) %>%
-  dplyr::summarise(
-    label = clock_summary_label(
-      actual = Age,
-      predicted = PredictedAgeLOIOCV,
-      individuals = AnimalID
-    ),
-    .groups = "drop"
-  )
-
-MonoClk_tissue_plot_labeled <- MonoClk_tissue_plot +
-  geom_text(
-    data = label_MonoClk_tissue,
-    aes(label = label),
-    x = 39,
-    y = 49,
-    inherit.aes = FALSE,
-    hjust = 1,
-    vjust = 1,
-    size = 5
-  )
-MonoClk_tissue_plot_labeled
-
-# Save plot
-ggsave(
-  filename = "Outputs_ENR/MonoClk_plot_tissue.png",
-  plot = MonoClk_tissue_plot_labeled,
-  width = 10,
-  height = 4,
-  units = "in",
-  dpi = 300
-)
-
-MonoClk_tissue_plot_clean <- MonoClk_tissue_plot_labeled +
-  labs(
-    x = NULL,
-    y = NULL
-  )
-MonoClk_tissue_plot_clean
-
-
-#### Plot Species and Tissue - Monotreme Epigenetic Clock ------------------
-
-MonoClk_species_tissue_plot <- ggplot(meta_train, aes(x = Age, y = PredictedAgeLOIOCV, 
-                                              colour = Species, shape = Tissue)) +
-  geom_point(size = 2, stroke = 0.8) +
-  geom_smooth(
-    inherit.aes = FALSE,
-    aes(x = Age, y = PredictedAgeLOIOCV),
-    method = "lm",
-    se = FALSE,
-    colour = "black",
-    linewidth = 1
-  ) +
-  geom_abline(intercept = 0, slope = 1, linetype = 2) +
-  facet_wrap( ~ Species + Tissue, nrow = 1,
-              labeller = labeller(
-                Tissue = c(
-                  "blood" = "Blood",
-                  "skin" = "Skin"
-                ))
-  ) +
-  scale_colour_manual(
-    name = "Species",
-    values = c(
-      "Platypus" = "#293583",
-      "Short-beaked echidna" = "#ff7254"
-    )) +
-  scale_shape_manual(
-    name = "Tissue",
-    values = c(
-      "blood" = 21,
-      "skin" = 24
-    ),
-    labels = c(
-      "Blood",
-      "Skin"
-    )) +
-  coord_equal(
-    xlim = c(0, 40),
-    ylim = c(0, 50)
-  ) +
-  theme_classic() +
-  labs(
-    x = "Chronological age (years)",
-    y = "Predicted age (years)"
-  ) +
-  theme(strip.background = element_blank(),
-        strip.text = element_text(size = 14)
-  )
-MonoClk_species_tissue_plot
-
-label_MonoClk_species_tissue <- meta_train %>%
-  dplyr::group_by(Species, Tissue) %>%
-  dplyr::summarise(
-    label = clock_summary_label(
-      actual = Age,
-      predicted = PredictedAgeLOIOCV,
-      individuals = AnimalID
-    ),
-    .groups = "drop"
-  )
-
-MonoClk_species_tissue_plot_labeled <- MonoClk_species_tissue_plot +
-  geom_text(
-    data = label_MonoClk_species_tissue,
-    aes(label = label),
-    x = 39,
-    y = 49,
-    inherit.aes = FALSE,
-    hjust = 1,
-    vjust = 1,
-    size = 5
-  )
-MonoClk_species_tissue_plot_labeled
-
-# Save plot
-ggsave(
-  filename = "Outputs_ENR/MonoClk_plot_species_tissue.png",
-  plot = MonoClk_species_tissue_plot_labeled,
-  width = 10,
-  height = 4,
-  units = "in",
-  dpi = 300
-)
-
-MonoClk_species_tissue_plot_clean <- MonoClk_species_tissue_plot_labeled +
-  labs(
-    x = NULL,
-    y = "Predicted Age (years)"
-  )
-MonoClk_species_tissue_plot_clean
-
-#### Figure 1. Comparison of the three clocks -----------------------------
-
-Figure_1 <- (UniClock2_plot_clean | UniClock3_plot_clean | MonotremeClock_plot_clean) +
-  plot_layout(guides = "collect") +
-  plot_annotation(
-    caption = "Chronological age (years)",
-    tag_levels = list(c("(a)", "(b)", "(c)"))
-  ) &
-  theme(
-    legend.position = "right",
-    axis.text = element_text(size = 16),
-    axis.title = element_text(size = 18),
-    plot.caption = element_text(
-      hjust = 0.5,
-      size = 18
-    ),
-    plot.tag = element_text(size = 18, face = "bold"),
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 18),
-    plot.margin = margin(t = 5, r = 5, b = 5, l = 5)
-  )
-Figure_1
-
-ggsave(
-  filename = "Outputs_ENR/Chapter 2_Figure 1.png",
-  plot = Figure_1,
-  width = 14,
-  height = 7,
-  units = "in",
-  dpi = 300
-)
-
-
-#### Figure 2. Monotreme Clock filtered ------------------------------------
-
-Figure_2 <- (MonoClk_species_plot_clean | MonoClk_tissue_plot_clean) / 
-  (MonoClk_species_tissue_plot_clean) +
-  plot_layout(guides = "collect") +
-  plot_annotation(
-    caption = "Chronological age (years)", 
-    tag_levels = list(c("(a)", "(b)", "(c)"))
-  ) &
-  theme(
-    legend.position = "right",
-    axis.text = element_text(size = 16),
-    axis.title = element_text(size = 18),
-    plot.caption = element_text(
-      hjust = 0.5,
-      size = 18
-    ),
-    plot.tag = element_text(size = 18, face = "bold"),
-    legend.text = element_text(size = 16),
-    legend.title = element_text(size = 18),
-    plot.margin = margin(t = 5, r = 5, b = 5, l = 5)
-  )
-Figure_2
-
-ggsave(
-  filename = "Outputs_ENR/Chapter 2_Figure 2.png",
-  plot = Figure_2,
-  width = 14,
-  height = 8,
-  units = "in",
-  dpi = 300
-)
 
 # CpG Count ----------------------------------------------------------------
 
@@ -1014,28 +504,6 @@ coef_table <- data.frame(
 )
 
 coef_table <- subset(coef_table, Coefficient != 0)
-
-# Table for Supplementary data
-
-write.csv(
-  coef_table,
-  file = "Outputs_ENR/CpGs_Retained.csv",
-  row.names = FALSE
-)    
-    
-# ????
-results$nCpGs <- sapply(results$alpha, function(a) {
-  cvfit <- cv.glmnet(
-    x = as(beta_data, "dgCMatrix"),
-    y = as.numeric(age_data),
-    alpha = a,
-    family = "gaussian"
-  )
-  coef_mat <- coef(cvfit, s = "lambda.1se")
-  sum(coef_mat[-1, ] != 0)
-})
-
-alpha | lambda | nCpGs | MAE | r
 
 
 ### Assessing batch effects ------------------------------------------------
@@ -1080,12 +548,6 @@ summary(lmm_treatment1)
 
 coef_table_treatment1 <- as.data.frame(summary(lmm_treatment1)$coefficients)
 
-write.csv(
-  coef_table_treatment1,
-  file = "Outputs_ENR/Storage treatment_lmm.csv",
-  row.names = TRUE
-)
-
 lmm_treatment2 <- lmer(
   abs_error ~ group + Tissue + (1 | AnimalID),
   data = treatment_df
@@ -1094,44 +556,6 @@ lmm_treatment2 <- lmer(
 summary(lmm_treatment2)
 
 coef_table_treatment2 <- as.data.frame(summary(lmm_treatment2)$coefficients)
-
-write.csv(
-  coef_table_treatment2,
-  file = "Outputs_ENR/Storage treatment_abserror_lmm.csv",
-  row.names = TRUE
-)
-
-# Individuals' origin
-
-lmm_origin1 <- lmer(
-  error ~ individual.origin + Tissue + (1 | AnimalID),
-  data = treatment_df
-)
-
-summary(lmm_origin1)
-
-coef_table_origin1 <- as.data.frame(summary(lmm_origin1)$coefficients)
-
-write.csv(
-  coef_table_origin1,
-  file = "Outputs_ENR/Individuals origin_lmm.csv",
-  row.names = TRUE
-)
-
-lmm_origin2 <- lmer(
-  abs_error ~ individual.origin + Tissue + (1 | AnimalID),
-  data = treatment_df
-)
-
-summary(lmm_origin2)
-
-coef_table_origin2 <- as.data.frame(summary(lmm_origin2)$coefficients)
-
-write.csv(
-  coef_table_origin2,
-  file = "Outputs_ENR/Individuals origin_abserror_lmm.csv",
-  row.names = TRUE
-)
 
 # Sex
 
@@ -1144,12 +568,6 @@ summary(lmm_sex1)
 
 coef_table_sex1 <- as.data.frame(summary(lmm_sex1)$coefficients)
 
-write.csv(
-  coef_table_sex1,
-  file = "Outputs_ENR/Sex_lmm.csv",
-  row.names = TRUE
-)
-
 lmm_sex2 <- lmer(
   abs_error ~ Sex + Tissue + (1 | AnimalID),
   data = treatment_df
@@ -1158,12 +576,6 @@ lmm_sex2 <- lmer(
 summary(lmm_sex2)
 
 coef_table_sex2 <- as.data.frame(summary(lmm_sex2)$coefficients)
-
-write.csv(
-  coef_table_sex2,
-  file = "Outputs_ENR/Sex_abserror_lmm.csv",
-  row.names = TRUE
-)
 
 # Species
 
@@ -1180,113 +592,3 @@ lmm_species2 <- lmer(
 )
 
 summary(lmm_species2)
-
-
-# Table for supplementary data
-
-treatment_summary <- meta_train %>%
-  dplyr::group_by(SpeciesLatinName, Group, Tissue) %>%
-  dplyr::summarise(
-    Samples = dplyr::n(),
-    .groups = "drop"
-  )
-
-write.csv(
-  treatment_summary,
-    file = "Outputs_ENR/Treatment_Summary.csv",
-  row.names = FALSE
-)
-
-
-### Splitting ASM by sex ----------------------------------------------------
-
-matAGEfem <- 7
-matAGEmale <- 7
-############# sexual maturity
-
-SplitBySex <- split(x = info, f = info$Sex)
-### Applies the LLin3 transformation to the input vector x
-fun_llin_trans_Female <- Vectorize(function(x, maturity = matAGEfem) {
-  if (is.na(x) | is.na(maturity)) {return(NA)}
-  k <- 1.5
-  y <- 0
-  if (x < maturity) {y = log((x+k)/(maturity+k))}
-  else {y = (x-maturity)/(maturity+k)}
-  return(y)
-})
-
-fun_llin_trans_Male <- Vectorize(function(x, maturity = matAGEmale) {
-  if (is.na(x) | is.na(maturity)) {return(NA)}
-  k <- 1.5
-  y <- 0
-  if (x < maturity) {y = log((x+k)/(maturity+k))}
-  else {y = (x-maturity)/(maturity+k)}
-  return(y)
-})
-
-SplitBySex$Male$tAge = fun_llin_trans_Male(SplitBySex$Male$Age)
-SplitBySex$Female$tAge = fun_llin_trans_Female(SplitBySex$Female$Age)
-
-
-#inverse sex-specific
-
-fun_llin_inv_Female <- Vectorize(function(y, maturity = matAGEfem) {
-  if (is.na(y) | is.na(maturity)) {return(NA)}
-  k <- 1.5
-  x <- 0
-  if (y < 0) {x = (maturity+k)*exp(y)-k}
-  else {x = (maturity+k)*y+maturity}
-  return(x)
-})
-
-fun_llin_inv_Male <- Vectorize(function(y, maturity = matAGEmale) {
-  if (is.na(y) | is.na(maturity)) {return(NA)}
-  k <- 1.5
-  x <- 0
-  if (y < 0) {x = (maturity+k)*exp(y)-k}
-  else {x = (maturity+k)*y+maturity}
-  return(x)
-})
-
-SplitBySex$Female$iAge = fun_llin_inv_Female(SplitBySex$Female$tAge)
-SplitBySex$Male$iAge = fun_llin_inv_Male(SplitBySex$Male$tAge)
-
-info <- unsplit(SplitBySex, info$Sex)
-
-
-# Choosing alpha -----------------------------------------------------------
-
-alphas <- seq(0.1, 1, by = 0.1)
-
-alpha_results <- data.frame()
-
-for (a in alphas) {
-  cvfit <- cv.glmnet(
-    x = as(beta_data, "dgCMatrix"),
-    y = as.numeric(age_data),
-    alpha = a,
-    family = "gaussian",
-    nfolds = 10
-  )
-  idx_1se <- which(cvfit$lambda == cvfit$lambda.1se)
-  alpha_results <- rbind(
-    alpha_results,
-    data.frame(
-      alpha = a,
-      lambda = cvfit$lambda.1se,
-      cvm = cvfit$cvm[idx_1se],
-      nCpGs = sum(coef(cvfit, s = "lambda.1se")[-1, ] != 0)
-    )
-  )
-}
-
-alpha_results# choose lowest cvm (cross-validation error), = 0.6, however models 
-# perform best overall with alpha = 0.5
-
-# Summary alpha review ------------------------------------------------------
-write.csv(
-  alpha_results,
-  file = "Outputs_ENR/Summary_alpha_review.csv",
-  row.names = FALSE
-)
-
